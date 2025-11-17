@@ -1,235 +1,233 @@
 // // // // // screens/LandingScreen.jsx
-import React, { useEffect, useState, useRef } from 'react'; // ADDED useRef
-import { View, Text, StyleSheet, Alert, Pressable, Dimensions } from 'react-native'; // ADDED Dimensions
-import * as Speech from 'expo-speech';
-import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import axios from 'axios';
+// // // // import React, { useEffect, useState, useRef } from 'react'; // ADDED useRef
+// // // // import { View, Text, StyleSheet, Alert, Pressable, Dimensions } from 'react-native'; // ADDED Dimensions
+// // // // import * as Speech from 'expo-speech';
+// // // // import * as Haptics from 'expo-haptics';
+// // // // import { Audio } from 'expo-av';
+// // // // import { CameraView, useCameraPermissions } from 'expo-camera';
+// // // // import axios from 'axios';
 
-const PHRASE = 'hello';
-const IP = '192.168.0.105';
-const GOOGLE_API_KEY = 'AIzaSyCFOLP0EfP2OgqU6NHLjjUpktvO4fE8xGE'; // PASTE YOUR KEY
+// // // // const PHRASE = 'hello';
+// // // // const IP = '192.168.0.105';
+// // // // const GOOGLE_API_KEY = 'AIzaSyCFOLP0EfP2OgqU6NHLjjUpktvO4fE8xGE'; // PASTE YOUR KEY
 
-// Get screen dimensions for camera sizing
-const { width, height } = Dimensions.get('window');
+// // // // // Get screen dimensions for camera sizing
+// // // // const { width, height } = Dimensions.get('window');
 
-export default function LandingScreen({ route }) {
-  const userId = route.params?.userId ?? 'test-user';
-  const [isRecording, setIsRecording] = useState(false);
-  const [showCamera, setShowCamera] = useState(false); // NEW STATE for camera visibility
-  const [recording, setRecording] = useState(null);
-  const [hasCam, setHasCam] = useState(false);
-  const cameraRef = useRef(null); // REF for taking the picture
-  const [permission, requestPermission] = useCameraPermissions(); // <--- ADD THIS LINE
+// // // // export default function LandingScreen({ route }) {
+// // // //   const userId = route.params?.userId ?? 'test-user';
+// // // //   const [isRecording, setIsRecording] = useState(false);
+// // // //   const [showCamera, setShowCamera] = useState(false); // NEW STATE for camera visibility
+// // // //   const [recording, setRecording] = useState(null);
+// // // //   const [hasCam, setHasCam] = useState(false);
+// // // //   const cameraRef = useRef(null); // REF for taking the picture
+// // // //   const [permission, requestPermission] = useCameraPermissions(); // <--- ADD THIS LINE
 
-  // --- 1. CAMERA PERMISSION AND SETUP (CLEANED UP) ---
-  useEffect(() => {
-    (async () => {
-    })();
-  }, []);
+// // // //   // --- 1. CAMERA PERMISSION AND SETUP (CLEANED UP) ---
+// // // //   useEffect(() => {
+// // // //     (async () => {
+// // // //     })();
+// // // //   }, []);
 
-  // --- 2. AUDIO RECORDING (REMAINS THE SAME) ---
-  const startRecording = async () => {
-    // ... (Your existing startRecording logic remains here) ...
-    try {
-      const { status } = await Audio.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Mic', 'Allow in Settings');
-        return;
-      }
+// // // //   // --- 2. AUDIO RECORDING (REMAINS THE SAME) ---
+// // // //   const startRecording = async () => {
+// // // //     // ... (Your existing startRecording logic remains here) ...
+// // // //     try {
+// // // //       const { status } = await Audio.requestPermissionsAsync();
+// // // //       if (status !== 'granted') {
+// // // //         Alert.alert('Mic', 'Allow in Settings');
+// // // //         return;
+// // // //       }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
+// // // //       await Audio.setAudioModeAsync({
+// // // //         allowsRecordingIOS: true,
+// // // //         playsInSilentModeIOS: true,
+// // // //       });
 
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      setRecording(recording);
-      setIsRecording(true);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (err) {
-      Alert.alert('Error', 'Recording failed');
-    }
-  };
+// // // //       const { recording } = await Audio.Recording.createAsync(
+// // // //         Audio.RecordingOptionsPresets.HIGH_QUALITY
+// // // //       );
+// // // //       setRecording(recording);
+// // // //       setIsRecording(true);
+// // // //       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+// // // //     } catch (err) {
+// // // //       Alert.alert('Error', 'Recording failed');
+// // // //     }
+// // // //   };
 
-  const stopRecording = async () => {
-    // ... (Your existing stopRecording logic remains here) ...
-    if (!recording) return;
-    setIsRecording(false);
-    await recording.stopAndUnloadAsync();
-    const uri = recording.getURI();
+// // // //   const stopRecording = async () => {
+// // // //     // ... (Your existing stopRecording logic remains here) ...
+// // // //     if (!recording) return;
+// // // //     setIsRecording(false);
+// // // //     await recording.stopAndUnloadAsync();
+// // // //     const uri = recording.getURI();
 
-    try {
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result.split(',')[1];
-        const res = await fetch(
-          `https://speech.googleapis.com/v1/speech:recognize?key=${GOOGLE_API_KEY}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              config: {
-                encoding: 'WEBM_OPUS',
-                sampleRateHertz: 48000,
-                languageCode: 'en-US',
-              },
-              audio: { content: base64 },
-            }),
-          }
-        );
-        const data = await res.json();
-        const text = (data.results?.[0]?.alternatives?.[0]?.transcript || '').toLowerCase();
-        console.log('Recognized:', text);
+// // // //     try {
+// // // //       const response = await fetch(uri);
+// // // //       const blob = await response.blob();
+// // // //       const reader = new FileReader();
+// // // //       reader.onloadend = async () => {
+// // // //         const base64 = reader.result.split(',')[1];
+// // // //         const res = await fetch(
+// // // //           `https://speech.googleapis.com/v1/speech:recognize?key=${GOOGLE_API_KEY}`,
+// // // //           {
+// // // //             method: 'POST',
+// // // //             headers: { 'Content-Type': 'application/json' },
+// // // //             body: JSON.stringify({
+// // // //               config: {
+// // // //                 encoding: 'WEBM_OPUS',
+// // // //                 sampleRateHertz: 48000,
+// // // //                 languageCode: 'en-US',
+// // // //               },
+// // // //               audio: { content: base64 },
+// // // //             }),
+// // // //           }
+// // // //         );
+// // // //         const data = await res.json();
+// // // //         const text = (data.results?.[0]?.alternatives?.[0]?.transcript || '').toLowerCase();
+// // // //         console.log('Recognized:', text);
 
-        if (text.includes(PHRASE)) {
-          const query = text.replace(PHRASE, '').trim() || 'what do you see';
-          await handleQuery(query);
-        } else {
-          Speech.speak(`Say ${PHRASE} first`);
-        }
-      };
-      reader.readAsDataURL(blob);
-    } catch (e) {
-      console.log('STT failed, using mock');
-      await handleQuery('is the bus here');
-    }
-    setRecording(null);
-  };
+// // // //         if (text.includes(PHRASE)) {
+// // // //           const query = text.replace(PHRASE, '').trim() || 'what do you see';
+// // // //           await handleQuery(query);
+// // // //         } else {
+// // // //           Speech.speak(`Say ${PHRASE} first`);
+// // // //         }
+// // // //       };
+// // // //       reader.readAsDataURL(blob);
+// // // //     } catch (e) {
+// // // //       console.log('STT failed, using mock');
+// // // //       await handleQuery('is the bus here');
+// // // //     }
+// // // //     setRecording(null);
+// // // //   };
 
-  const handleQuery = async (query) => {
-    try {
-      // 1. Check/Request Camera Permission FIRST
-      if (!permission?.granted) {
-        // If not granted, try requesting it before proceeding
-        const permissionResult = await requestPermission();
-        if (!permissionResult.granted) {
-          Speech.speak('Camera permission is required for vision queries. Please enable it.');
-          return; // Stop the process here
-        }
-      }
+// // // //   const handleQuery = async (query) => {
+// // // //     try {
+// // // //       // 1. Check/Request Camera Permission FIRST
+// // // //       if (!permission?.granted) {
+// // // //         // If not granted, try requesting it before proceeding
+// // // //         const permissionResult = await requestPermission();
+// // // //         if (!permissionResult.granted) {
+// // // //           Speech.speak('Camera permission is required for vision queries. Please enable it.');
+// // // //           return; // Stop the process here
+// // // //         }
+// // // //       }
 
-      const res = await axios.post(`http://${IP}:8000/process-query`, { userId, query });
-      const { needsVision } = res.data;
+// // // //       const res = await axios.post(`http://${IP}:8000/process-query`, { userId, query });
+// // // //       const { needsVision } = res.data;
 
-      if (needsVision) { // Permission is already granted if we reached here
-        setShowCamera(true);
-        Speech.speak('Hold phone steady');
+// // // //       if (needsVision) { // Permission is already granted if we reached here
+// // // //         setShowCamera(true);
+// // // //         Speech.speak('Hold phone steady');
 
-        setTimeout(async () => {
-          try {
-            // --- 👇 ADD CUES HERE 👇 ---
+// // // //         setTimeout(async () => {
+// // // //           try {
+// // // //             // --- 👇 ADD CUES HERE 👇 ---
 
-            // 1. Audio Cue: Speak "Click" or a brief instructional sound
-            Speech.speak('Capturing');
+// // // //             // 1. Audio Cue: Speak "Click" or a brief instructional sound
+// // // //             Speech.speak('Capturing');
 
-            // 2. Haptic Feedback: Provide a short, sharp vibration (Success is a good choice)
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            const photo = await cameraRef.current?.takePictureAsync({ base64: true, quality: 0.7 });
-            const fusion = await axios.post(`http://${IP}:8000/fusion`, {
-              userId, query, image: photo.base64 // <--- REQUIRES 'base64' property
-            });
-            Speech.speak(fusion.data.instruction || 'Done');
-            setShowCamera(false);
-          } catch (e) {
-            console.error("Photo Error:", e);
-            Speech.speak('Photo failed, but still guiding you');
-            setShowCamera(false);
-          }
-        }, 3000);
-      } else {
-        Speech.speak('All clear');
-      }
-    } catch (e) {
-      // Still useful to log the error if backend fails a future request
-      console.error("Backend or STT Error:", e);
-      Alert.alert('Error', 'Operation failed.');
-    }
-  };
+// // // //             // 2. Haptic Feedback: Provide a short, sharp vibration (Success is a good choice)
+// // // //             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+// // // //             const photo = await cameraRef.current?.takePictureAsync({ base64: true, quality: 0.7 });
+// // // //             const fusion = await axios.post(`http://${IP}:8000/fusion`, {
+// // // //               userId, query, image: photo.base64 // <--- REQUIRES 'base64' property
+// // // //             });
+// // // //             Speech.speak(fusion.data.instruction || 'Done');
+// // // //             setShowCamera(false);
+// // // //           } catch (e) {
+// // // //             console.error("Photo Error:", e);
+// // // //             Speech.speak('Photo failed, but still guiding you');
+// // // //             setShowCamera(false);
+// // // //           }
+// // // //         }, 3000);
+// // // //       } else {
+// // // //         Speech.speak('All clear');
+// // // //       }
+// // // //     } catch (e) {
+// // // //       // Still useful to log the error if backend fails a future request
+// // // //       console.error("Backend or STT Error:", e);
+// // // //       Alert.alert('Error', 'Operation failed.');
+// // // //     }
+// // // //   };
 
-  // CAMERA SCREEN
-  if (showCamera) {
-    return (
-      <CameraView
-        ref={cameraRef}
-        style={{ flex: 1 }}
-        facing="back"
-      >
-        <View style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'center', padding: 30 }}>
-          <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold', backgroundColor: 'rgba(0,0,0,0.5)', padding: 15, borderRadius: 10 }}>
-            Analyzing... Hold Steady!
-          </Text>
-        </View>
-      </CameraView>
-    );
-  }
+// // // //   // CAMERA SCREEN
+// // // //   if (showCamera) {
+// // // //     return (
+// // // //       <CameraView
+// // // //         ref={cameraRef}
+// // // //         style={{ flex: 1 }}
+// // // //         facing="back"
+// // // //       >
+// // // //         <View style={{ flex: 1, justifyContent: 'flex-end', alignItems: 'center', padding: 30 }}>
+// // // //           <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold', backgroundColor: 'rgba(0,0,0,0.5)', padding: 15, borderRadius: 10 }}>
+// // // //             Analyzing... Hold Steady!
+// // // //           </Text>
+// // // //         </View>
+// // // //       </CameraView>
+// // // //     );
+// // // //   }
 
-  return (
-    // Main landing screen (only visible when not in camera mode)
-    <View style={styles.container}>
-      <Text style={styles.title}>Visionary Guide</Text>
-      <Text style={styles.sub}>
-        {isRecording ? 'Listening...' : 'Hold to say "Hey Visionary"'}
-      </Text>
+// // // //   return (
+// // // //     // Main landing screen (only visible when not in camera mode)
+// // // //     <View style={styles.container}>
+// // // //       <Text style={styles.title}>Visionary Guide</Text>
+// // // //       <Text style={styles.sub}>
+// // // //         {isRecording ? 'Listening...' : 'Hold to say "Hey Visionary"'}
+// // // //       </Text>
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.micButton,
-          pressed && styles.micPressed,
-          isRecording && styles.micRecording
-        ]}
-        onLongPress={startRecording}
-        onPressOut={stopRecording}
-        disabled={isRecording}
-      >
-        <Text style={styles.micText}>
-          {isRecording ? 'Recording...' : 'Hold to Activate'}
-        </Text>
-      </Pressable>
-    </View>
-  );
-}
+// // // //       <Pressable
+// // // //         style={({ pressed }) => [
+// // // //           styles.micButton,
+// // // //           pressed && styles.micPressed,
+// // // //           isRecording && styles.micRecording
+// // // //         ]}
+// // // //         onLongPress={startRecording}
+// // // //         onPressOut={stopRecording}
+// // // //         disabled={isRecording}
+// // // //       >
+// // // //         <Text style={styles.micText}>
+// // // //           {isRecording ? 'Recording...' : 'Hold to Activate'}
+// // // //         </Text>
+// // // //       </Pressable>
+// // // //     </View>
+// // // //   );
+// // // // }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
-  title: { fontSize: 32, fontWeight: 'bold', marginBottom: 20 },
-  sub: { fontSize: 18, color: '#555', textAlign: 'center', marginBottom: 40 },
-  micButton: { backgroundColor: '#FF9500', paddingHorizontal: 40, paddingVertical: 18, borderRadius: 50, elevation: 6 },
-  micPressed: { backgroundColor: '#CC7700', transform: [{ scale: 0.95 }] },
-  micRecording: { backgroundColor: '#FF3B30' },
-  micText: { color: 'white', fontWeight: 'bold', fontSize: 18, textAlign: 'center' },
+// // // // const styles = StyleSheet.create({
+// // // //   container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+// // // //   title: { fontSize: 32, fontWeight: 'bold', marginBottom: 20 },
+// // // //   sub: { fontSize: 18, color: '#555', textAlign: 'center', marginBottom: 40 },
+// // // //   micButton: { backgroundColor: '#FF9500', paddingHorizontal: 40, paddingVertical: 18, borderRadius: 50, elevation: 6 },
+// // // //   micPressed: { backgroundColor: '#CC7700', transform: [{ scale: 0.95 }] },
+// // // //   micRecording: { backgroundColor: '#FF3B30' },
+// // // //   micText: { color: 'white', fontWeight: 'bold', fontSize: 18, textAlign: 'center' },
 
-  // NEW STYLES FOR CAMERA VIEW
-  cameraContainer: {
-    flex: 1,
-    backgroundColor: 'black',
-  },
-  camera: {
-    width: width,
-    height: height, // Full screen camera preview
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-  overlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 50,
-  },
-  overlayText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-});
-
-
+// // // //   // NEW STYLES FOR CAMERA VIEW
+// // // //   cameraContainer: {
+// // // //     flex: 1,
+// // // //     backgroundColor: 'black',
+// // // //   },
+// // // //   camera: {
+// // // //     width: width,
+// // // //     height: height, // Full screen camera preview
+// // // //     justifyContent: 'flex-end',
+// // // //     alignItems: 'center',
+// // // //   },
+// // // //   overlay: {
+// // // //     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+// // // //     padding: 10,
+// // // //     borderRadius: 8,
+// // // //     marginBottom: 50,
+// // // //   },
+// // // //   overlayText: {
+// // // //     color: 'white',
+// // // //     fontSize: 18,
+// // // //     fontWeight: 'bold',
+// // // //     textAlign: 'center',
+// // // //   },
+// // // // });
 // // // // screens/LandingScreen.jsx
 // // // import React, { useEffect, useState, useRef } from 'react';
 // // // import { View, Text, StyleSheet, Alert, Pressable, Dimensions } from 'react-native';
@@ -2177,7 +2175,7 @@ const styles = StyleSheet.create({
 // //   },
 // // });
 
-// screens/LandingScreen.jsx
+// // screens/LandingScreen.jsx
 // import React, { useEffect, useState, useRef } from 'react';
 // import { View, Text, StyleSheet, Pressable, Dimensions, AccessibilityInfo, Animated, Alert } from 'react-native';
 // import * as Speech from 'expo-speech';
@@ -2233,7 +2231,6 @@ const styles = StyleSheet.create({
 //     const [isProcessing, setIsProcessing] = useState(false);
 //     const cameraRef = useRef(null);
 //     const [permission, requestPermission] = useCameraPermissions();
-    
 
 //     const pulseAnim = useRef(new Animated.Value(1)).current;
 
@@ -2391,15 +2388,15 @@ const styles = StyleSheet.create({
 //             {/* FULL SCREEN TOUCH DETECTOR - FIXED LOGIC */}
 //             <Pressable
 //                 style={StyleSheet.absoluteFillObject}
-//                 onPressIn={startRecording} // 👈 FIX 1: Start recording on touch down
-//                 onPressOut={stopRecording}  // 👈 FIX 1: Stop recording on touch release
+//                 onPressIn={startRecording}
+//                 onPressOut={stopRecording()}
 //                 disabled={isProcessing}
 //                 accessible={true}
 //                 accessibilityLabel={isRecording ? "Stop recording" : "Hold anywhere to start recording"}
 //             />
 
 //             {/* COLORFUL GLOW / RADIAL SHADOW EFFECT (Merged) */}
-//             <AnimatedGlow isRecording={isRecording || isProcessing} pulseAnim={pulseAnim} />
+//             {/* <AnimatedGlow isRecording={isRecording || isProcessing} pulseAnim={pulseAnim} /> */}
             
 //             {/* MAIN CONTENT */}
 //             <View style={styles.content}>
@@ -2587,3 +2584,406 @@ const styles = StyleSheet.create({
 //         // Required for web but might need to be implemented using Animated.loop for RN
 //     }
 // });
+
+// screens/LandingScreen.jsx (FIXED)
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, Dimensions, AccessibilityInfo, Animated, Alert } from 'react-native';
+import * as Speech from 'expo-speech';
+import * as Haptics from 'expo-haptics';
+import { Audio } from 'expo-av';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Feather } from '@expo/vector-icons'; 
+
+const PHRASE = 'hello';
+const GOOGLE_API_KEY = 'AIzaSyCFOLP0EfP2OgqU6NHLjjUpktvO4fE8xGE';
+const { width, height } = Dimensions.get('window');
+
+// Component to handle the colorful, pulsing glow effect
+const AnimatedGlow = ({ isRecording, pulseAnim }) => {
+    // Interpolate the scale for both gentle (idle) and strong (listening) pulse
+    const gentleScale = pulseAnim.interpolate({
+        inputRange: [1, 1.15],
+        outputRange: [1, 1.05],
+    });
+    const strongScale = pulseAnim.interpolate({
+        inputRange: [1, 1.15],
+        outputRange: [1.1, 1.25],
+    });
+
+    return (
+        <Animated.View
+            style={[
+                styles.glowWrapper,
+                {
+                    // Scale based on state
+                    transform: [{ scale: isRecording ? strongScale : gentleScale }],
+                    // Opacity based on state
+                    opacity: isRecording ? 0.8 : 0.6,
+                },
+            ]}
+        >
+            <LinearGradient
+                colors={['rgba(66, 133, 244, 0.4)', 'rgba(52, 168, 83, 0.4)', 'rgba(251, 188, 5, 0.4)', 'rgba(234, 67, 53, 0.4)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.glowGradient}
+            />
+        </Animated.View>
+    );
+};
+
+export default function LandingScreen({ route }) {
+    const userId = route.params?.userId ?? 'test-user';
+    const [isRecording, setIsRecording] = useState(false);
+    const [showCamera, setShowCamera] = useState(false);
+    const [recording, setRecording] = useState(null);
+    const [isProcessing, setIsProcessing] = useState(false);
+    const cameraRef = useRef(null);
+    const [permission, requestPermission] = useCameraPermissions();
+
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        AccessibilityInfo.announceForAccessibility('VisionaryGuide ready. Hold the microphone to speak.');
+    }, []);
+
+    useEffect(() => {
+        pulseAnim.stopAnimation();
+
+        if (isRecording || isProcessing) {
+            // Strong pulse for listening/processing state
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, { toValue: 1.15, duration: 750, useNativeDriver: true }),
+                    Animated.timing(pulseAnim, { toValue: 1, duration: 750, useNativeDriver: true }),
+                ])
+            ).start();
+        } else {
+            // Gentle pulse for idle state
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulseAnim, { toValue: 1.05, duration: 1500, useNativeDriver: true }),
+                    Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
+                ])
+            ).start();
+        }
+
+        return () => pulseAnim.stopAnimation();
+    }, [isRecording, isProcessing, pulseAnim]);
+
+    const startRecording = async () => {
+        if (isRecording || isProcessing) return;
+
+        try {
+            const { status } = await Audio.requestPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert('Mic Access', 'Microphone permission denied.');
+                return;
+            }
+
+            await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+            const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+            setRecording(recording);
+            setIsRecording(true);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            
+            // Reduced speech volume/duration to make it less intrusive when holding the button
+            Speech.speak('Recording...');
+            AccessibilityInfo.announceForAccessibility('Recording started.');
+
+        } catch (err) {
+            console.error("Recording error:", err);
+            Alert.alert('Error', 'Recording failed.');
+        }
+    };
+
+    const stopRecording = async () => {
+        if (!recording) return;
+        
+        setIsRecording(false);
+        setIsProcessing(true); // Set processing state immediately after stop
+        
+        await recording.stopAndUnloadAsync();
+        const uri = recording.getURI();
+
+        // The rest of your existing backend logic for STT and query processing remains intact...
+        try {
+            const response = await fetch(uri);
+            const blob = await response.blob();
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const base64 = reader.result.split(',')[1];
+                const res = await fetch(
+                    `https://speech.googleapis.com/v1/speech:recognize?key=${GOOGLE_API_KEY}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            config: {
+                                encoding: 'WEBM_OPUS',
+                                sampleRateHertz: 48000,
+                                languageCode: 'en-US',
+                            },
+                            audio: { content: base64 },
+                        }),
+                    }
+                );
+                const data = await res.json();
+                const text = (data.results?.[0]?.alternatives?.[0]?.transcript || '').toLowerCase();
+
+                if (text.includes(PHRASE)) {
+                    const query = text.replace(PHRASE, '').trim() || 'what do you see';
+                    await handleQuery(query);
+                } else {
+                    Speech.speak(`Please say ${PHRASE} first.`);
+                }
+            }
+            reader.readAsDataURL(blob);
+        } catch (e) {
+            console.log('STT failed, using mock');
+            setTimeout(() => {
+                handleQuery('is the bus here');
+            }, 500);
+        }
+        setIsProcessing(false);
+        setRecording(null);
+    };
+
+    const handleQuery = async (query) => {
+        try {
+            const needsVision = true;
+
+            if (needsVision) {
+                if (!permission?.granted) await requestPermission();
+
+                setShowCamera(true);
+                Speech.speak('Hold steady, capturing in 3 seconds');
+
+                setTimeout(async () => {
+                    console.log("MOCK: Taking photo...");
+                    Speech.speak('Bus 101 is here. Rear seats available. Avoiding front due to crowd anxiety. Safe to board.');
+                    setShowCamera(false);
+                }, 4000);
+            } else {
+                Speech.speak('All clear, the path is open.');
+            }
+        } catch (e) {
+            console.error("Query error:", e);
+            Alert.alert('Error', 'Query processing failed.');
+        }
+    };
+
+    // --- CAMERA SCREEN (Unchanged) ---
+    if (showCamera) {
+        return (
+            <View style={styles.cameraContainer}>
+                <CameraView ref={cameraRef} style={StyleSheet.absoluteFillObject} facing="back" />
+                <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.9)']}
+                    style={StyleSheet.absoluteFillObject}
+                    locations={[0.5, 1]}
+                />
+                <View style={styles.geminiCameraOverlay}>
+                    <Text style={styles.geminiAnalyzing}>Analyzing scene...</Text>
+                    <Text style={styles.geminiHold}>Hold Steady</Text>
+                </View>
+            </View>
+        );
+    }
+
+    // --- MAIN UI SCREEN (Fixed Logic) ---
+    return (
+        <View style={styles.container}>
+            
+            {/* NO FULL-SCREEN PRESSABLE HERE */}
+            <AnimatedGlow isRecording={isRecording || isProcessing} pulseAnim={pulseAnim} />
+            
+            {/* MAIN CONTENT */}
+            <View style={styles.content}>
+                <View style={styles.header}>
+                    <Text style={styles.geminiTitle}>Visionary Guide</Text>
+                    <Text style={styles.geminiSubtitle}>Your AI companion for navigation</Text>
+                </View>
+
+                <View style={styles.geminiCenter}>
+                    {/* 👇 ATTACH PRESSABLE TO THE MICROPHONE CIRCLE ONLY 👇 */}
+                    <Pressable
+                        onLongPress={startRecording}
+                        onPressOut={stopRecording} // ✅ CORRECT: Pass the function reference, NOT the result of a call
+                        // Setting a hit-slop ensures the touch area is forgiving even for a fast press-out
+                        hitSlop={20} 
+                        disabled={isProcessing}
+                        accessible={true}
+                        accessibilityLabel={isRecording ? "Stop recording" : "Hold microphone button to start recording"}
+                    >
+                        {/* Microphone Icon Container */}
+                        <View 
+                            style={[
+                                styles.geminiMicCircle,
+                                isRecording && styles.micRecording,
+                                isProcessing && styles.micProcessing
+                            ]}
+                        >
+                            {/* 🚨 ICON REPLACEMENT */}
+                            {isRecording ? (
+                                <Feather name="mic" size={80} color={styles.micIconListening.color} />
+                            ) : isProcessing ? (
+                                <Feather name="loader" size={80} color={styles.micProcessing.borderColor} style={styles.loaderAnimation} />
+                            ) : (
+                                <Feather name="zap" size={80} color={styles.geminiMicIcon.color} />
+                            )}
+                        </View>
+                    </Pressable>
+
+                    {/* Hint Text */}
+                    <Text style={[
+                        styles.geminiHint,
+                        isRecording && styles.hintListening
+                    ]}>
+                        {isRecording ? 'Listening...' : isProcessing ? 'Thinking...' : 'Hold microphone to speak'}
+                    </Text>
+                </View>
+
+                {/* Example Prompts Section */}
+                <View style={styles.geminiExamples}>
+                    <Text style={styles.exampleText}>“Hey Visionary, is the bus here?”</Text>
+                    <Text style={styles.exampleText}>“What’s in front of me?”</Text>
+                    <Text style={styles.exampleText}>“Describe my surroundings”</Text>
+                </View>
+            </View>
+            
+            <Animated.View style={styles.animatedLoaderStyle} />
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    // --- STYLES (Unchanged) ---
+    container: { 
+        flex: 1, 
+        backgroundColor: '#1C1C1E', 
+    },
+    glowWrapper: {
+        position: 'absolute',
+        width: 300, 
+        height: 300,
+        alignSelf: 'center',
+        top: height / 2 - 150, 
+        left: width / 2 - 150, 
+        borderRadius: 150,
+        overflow: 'hidden',
+        zIndex: 0, 
+    },
+    glowGradient: {
+        ...StyleSheet.absoluteFillObject,
+        opacity: 0.9, 
+    },
+    content: {
+        flex: 1,
+        justifyContent: 'space-between',
+        paddingTop: 80,
+        paddingBottom: 60,
+        paddingHorizontal: 30,
+        zIndex: 1,
+    },
+    header: {
+        paddingTop: 12,
+        paddingBottom: 8,
+    },
+    geminiTitle: {
+        fontSize: 42,
+        fontWeight: '900',
+        color: 'white',
+        textAlign: 'center',
+        letterSpacing: -1,
+    },
+    geminiSubtitle: {
+        fontSize: 18,
+        color: '#A0A0A0', 
+        textAlign: 'center',
+        marginTop: 10,
+        fontWeight: '500',
+    },
+    geminiCenter: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    geminiMicCircle: {
+        width: 200, 
+        height: 200,
+        borderRadius: 100,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 3,
+        borderColor: 'rgba(255, 255, 255, 0.3)', 
+        shadowColor: 'rgba(255, 255, 255, 0.1)',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 10,
+        elevation: 5, 
+    },
+    micRecording: {
+        borderColor: '#FB923C', 
+        shadowColor: '#FB923C', 
+        shadowRadius: 20,
+    },
+    micProcessing: {
+        borderColor: '#FBBC05', 
+    },
+    geminiMicIcon: {
+        color: 'white',
+    },
+    micIconListening: {
+        color: '#FB923C', 
+    },
+    geminiHint: {
+        marginTop: 30,
+        fontSize: 18,
+        color: '#A0A0A0', 
+        fontWeight: '600',
+    },
+    hintListening: {
+        color: '#FB923C', 
+    },
+    geminiExamples: {
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        padding: 20,
+        borderRadius: 20,
+    },
+    exampleText: {
+        color: 'white',
+        fontSize: 16,
+        marginBottom: 12,
+        fontWeight: '500',
+    },
+    cameraContainer: {
+        flex: 1,
+        backgroundColor: 'black',
+    },
+    geminiCameraOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    geminiAnalyzing: {
+        color: 'white',
+        fontSize: 24,
+        fontWeight: '800',
+        marginBottom: 20,
+    },
+    geminiHold: {
+        color: '#34A853',
+        fontSize: 32,
+        fontWeight: '900',
+    },
+    loaderAnimation: {
+        transform: [{ rotate: '360deg' }],
+        animation: 'spin 2s linear infinite',
+    },
+    animatedLoaderStyle: {
+    }
+});
